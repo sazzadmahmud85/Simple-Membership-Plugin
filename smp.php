@@ -84,10 +84,16 @@ run_smp();
 class SimpleMembership{
 
     public function __construct(){
+        // Action Hooks of Wordpress
         add_action('plugins_loaded', array($this, 'smp_load_textdomain'));
         add_action('cmb2_init', array($this, 'smp_add_metabox'));
+        add_action( 'init', array($this, 'smp_custom_taxonomy_for_users_option' ));
+        add_action( 'admin_menu', array($this, 'smp_add_members_taxonomy_admin_page' ));
+        add_action( 'cmb2_admin_init', array($this, 'smp_register_taxonomy_metabox_field_for_members' ));
 
+        // Filter Hooks of Wordpress
         add_filter('the_content', array($this, 'smp_premium_posts_content'));
+
     }
 
     function is_user_have_permition($user_id, $post_id){
@@ -98,6 +104,75 @@ class SimpleMembership{
     // function get_user_by_id( $user_id ) {
     //     return get_user_by( 'id', $user_id );
     // }
+
+    function smp_custom_taxonomy_for_users_option(){
+        $labels = array(
+            'name'                       => _x( 'Members', 'Members Name', 'simple-membership' ),
+            'singular_name'              => _x( 'Member', 'Member Name', 'simple-membership' ),
+            'menu_name'                  => __( 'Members', 'simple-membership' ),
+            'all_items'                  => __( 'All Members', 'simple-membership' ),
+            'parent_item'                => __( 'Parent Member', 'simple-membership' ),
+            'parent_item_colon'          => __( 'Parent Member:', 'simple-membership' ),
+            'new_item_name'              => __( 'New Member Name', 'simple-membership' ),
+            'add_new_item'               => __( 'Add Member', 'simple-membership' ),
+            'edit_item'                  => __( 'Edit Member', 'simple-membership' ),
+            'update_item'                => __( 'Update Member', 'simple-membership' ),
+            'view_item'                  => __( 'View Member', 'simple-membership' ),
+            'separate_items_with_commas' => __( 'Separate member with commas', 'simple-membership' ),
+            'add_or_remove_items'        => __( 'Add or remove members', 'simple-membership' ),
+            'choose_from_most_used'      => __( 'Choose from the most used', 'simple-membership' ),
+            'popular_items'              => __( 'Popular Members', 'simple-membership' ),
+            'search_items'               => __( 'Search Members', 'simple-membership' ),
+            'not_found'                  => __( 'Not Found', 'simple-membership' ),
+            'no_terms'                   => __( 'No Members', 'simple-membership' ),
+            'items_list'                 => __( 'Departments list', 'simple-membership' ),
+            'items_list_navigation'      => __( 'Members list navigation', 'simple-membership' ),
+          );
+
+          $args = array(
+            'labels'                     => $labels,
+            'hierarchical'               => true,
+            'public'                     => true,
+            'show_ui'                    => true,
+            'show_admin_column'          => true,
+            'show_in_nav_menus'          => true,
+            'show_tagcloud'              => true,
+          );
+          register_taxonomy( 'members', 'user', $args );
+    }
+
+    function smp_add_members_taxonomy_admin_page(){
+        $tax = get_taxonomy( 'members' );
+        add_users_page(
+            esc_attr( $tax->labels->menu_name ),
+            esc_attr( $tax->labels->menu_name ),
+            $tax->cap->manage_terms,
+            'edit-tags.php?taxonomy=' . $tax->name
+        );
+    }
+
+    function smp_register_taxonomy_metabox_field_for_members(){
+        $cmb = new_cmb2_box( array( 
+            'id'               => 'edit',
+            'title'            => esc_html__( 'Category Metabox', 'cmb2' ),
+            'object_types'     => array( 'term' ), 
+            'taxonomies'       => array( 'members' ), 
+            // 'new_term_section' => true, // Will display in the "Add New Category" section 
+        )); 
+     
+        $all_user = [];
+        foreach(get_users() as $user){
+            $all_user[$user->ID] = $user->display_name;
+        }
+        
+        $cmb->add_field(array(
+            'name'    =>__('Users', 'simple-membership'),
+            'id'      => 'users_name',
+            'desc'    => 'Select Users.',
+            'type'    => 'pw_multiselect',
+            'options' => $all_user
+        ));
+    }
 
     function smp_premium_posts_content($content){
         global $post;
@@ -173,17 +248,43 @@ class SimpleMembership{
                             } 
                     */
 
-                // database is saving the ID number not the name
-                $premium_users_name = get_post_meta(get_the_ID(), 'premium_users_name', true);
+                // showing data by users name from multiselect field
+                // showing content basaed on the user name
+                /* 
+                        $premium_users_name = get_post_meta(get_the_ID(), 'premium_users_name', true);
+                        $current_user = wp_get_current_user();
+                        $current_user_name = strval($current_user->display_name);
+                    
+                        if(in_array($current_user_name, $premium_users_name)){
+                            return $content;
+                        }else{
+                            return $content = "<p>Sorry!! you are not eligible for this content. Please contact with the administrator. <br> Our Gmail: <code>admin@gmail.com</code> <br> Call US: +8801688-536148.</p>";
+                            // return "Hello from Normal User";
+                        } 
+                */
+
+                // showing data by users name from multiselect field
+                // showing content basaed on the user name -> same name can be for multiple users. we need to show data by using their id
+                $premium_users_name_id = get_post_meta(get_the_ID(), 'premium_users_name', true);
+                // var_dump($premium_users_name_id);
                 $current_user = wp_get_current_user();
-                $current_user_name = strval($current_user->display_name);
+                $current_user_id = strval($current_user->ID);
+                // var_dump($current_user_id);
+
             
-                if(in_array($current_user_name, $premium_users_name)){
-                    return $content;
-                }else{
-                    return $content = "<p>Sorry!! you are not eligible for this content. Please contact with the administrator. <br> Our Gmail: <code>admin@gmail.com</code> <br> Call US: +8801688-536148.</p>";
-                    // return "Hello from Normal User";
-                }
+                // if(in_array($current_user_id, $premium_users_name_id)){
+                //     return $content;
+                // }else{
+                //     return $content = "<p>Sorry!! you are not eligible for this content. Please contact with the administrator. <br> Our Gmail: <code>admin@gmail.com</code> <br> Call US: +8801688-536148.</p>";
+                //     // return "Hello from Normal User";
+                // }
+
+                //
+                // $users_id = get_term_meta(get_term_by('id', 5, 'members'), 'users_name', true);
+                // var_dump($users_id);
+
+               
+
 
             }
             else {
@@ -246,21 +347,44 @@ class SimpleMembership{
         //             // return "Hello from Normal User";
         //         } 
 
-        $all_users = get_users();
+        // $all_users = get_users();
         $all_user = [];
-        foreach($all_users as $user){
-            $all_user[] = $user->display_name;
+        foreach(get_users() as $user){
+            $all_user[$user->ID] = $user->display_name;
         }
-        $username = array_combine($all_user, $all_user);
-        
+        //$username = array_combine($all_user, $all_user);
+        // var_dump($all_user);
+        // var_dump(array_keys($all_user));
+        // All users ,multiselect field in post option
+       /*  
+            $cmb->add_field(array(
+                    'name'    => 'Premium Users Name',
+                    'id'      => 'premium_users_name',
+                    'desc'    => 'Select Users. Drag to reorder.',
+                    'type'    => 'pw_multiselect',
+                    'options' => $all_user
+                )); 
+        */
+
+        $member_types = get_terms(array(
+            'taxonomy' => 'members',
+            'hide_empty' => false,
+        ) );
+        // var_dump($member_types);
+        $term_types = $member_types[0]->name;
+        // var_dump($term_types); 
+        $member_type = [];
+        foreach($member_types as $mtype){
+            $member_type[$mtype->term_id] = $mtype->name;
+        }
+
         $cmb->add_field(array(
-            'name'    => 'Premium Users Name',
-            'id'      => 'premium_users_name',
-            'desc'    => 'Select Users. Drag to reorder.',
+            'name'    =>__('Member Type', 'simple-membership'),
+            'id'      => 'member_type',
+            'desc'    => 'Select Member Type.',
             'type'    => 'pw_multiselect',
-            'options' => $username
-        ));
-        
+            'options' => $member_type
+        )); 
     }
 
     function smp_load_textdomain(){
