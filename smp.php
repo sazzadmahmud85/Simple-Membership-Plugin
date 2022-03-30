@@ -77,7 +77,6 @@ require plugin_dir_path(__FILE__) . 'includes/class-smp.php';
  */
 function run_smp()
 {
-
     $plugin = new Smp();
     $plugin->run();
 }
@@ -94,23 +93,40 @@ class SimpleMembership
         add_action('init', array($this, 'smp_custom_taxonomy_for_users_option'));
         add_action('admin_menu', array($this, 'smp_add_members_taxonomy_admin_page'));
         add_action('cmb2_admin_init', array($this, 'smp_register_taxonomy_metabox_field_for_members'));
+        add_action('cmb2_admin_init', array($this, 'smp_register_metabox_field_for_each_category'));
 
         // Filter Hooks of Wordpress
         add_filter('the_content', array($this, 'smp_premium_posts_content'));
     }
 
-    function is_user_have_permition($user_id, $post_id)
+    function smp_register_metabox_field_for_each_category()
     {
-        return $post_id = get_post($post_id);
-        return $user_id = get_user_by('id', $user_id);
-    }
+        $cmb = new_cmb2_box(array(
+            'id'               => 'category_membership2222',
+            'title'            => esc_html__('Category Metabox', 'cmb2'),
+            'object_types'     => array('term'),
+            'taxonomies'       => array('category'),
+            // 'new_term_section' => true, // Will display in the "Add New Category" section 
+        ));
 
-    // function get_user_by_id( $user_id ) {
-    //     return get_user_by( 'id', $user_id );
-    // }
+        $member_types = get_terms(array(
+            'taxonomy' => 'members',
+            'hide_empty' => false,
+        ));
 
-    function smp_users_have_permission()
-    {
+        $member_type = [];
+
+        foreach ($member_types as $mtype) {
+            $member_type[$mtype->term_id] = $mtype->name;
+        }
+
+        $cmb->add_field(array(
+            'name'    => __('Member Type', 'simple-membership'),
+            'id'      => 'cat_member_type',
+            'desc'    => 'Select Member Type.',
+            'type'    => 'pw_multiselect',
+            'options' => $member_type
+        ));
     }
 
     function smp_custom_taxonomy_for_users_option()
@@ -278,40 +294,126 @@ class SimpleMembership
 
                 $current_user = wp_get_current_user();
                 $current_user_id = strval($current_user->ID);
-                var_dump($current_user_id);
+                // var_dump($current_user_id);
 
-                $member_terms = get_terms(array(
-                    'taxonomy' => 'members',
-                    'hide_empty' => false,
-                ));
-                foreach ($member_terms as $term) {
-                    $term_id[] = $term->term_id;
-                }
+                // $member_terms = get_terms(array(
+                //     'taxonomy' => 'members',
+                //     'hide_empty' => false,
+                // ));
+                // foreach ($member_terms as $term) {
+                //     $term_id[] = $term->term_id;
+                // }
 
                 $users_type = get_post_meta(get_the_ID(), 'member_type', true);
-                
+                // var_dump($users_type);
+
                 $all_selected_users_for_post = [];
                 foreach ($users_type as $user_type) {
+                    // var_dump($user_type);
                     $term_meta_value = get_term_meta($user_type);
+                    // var_dump($term_meta_value);
                     $term_users = $term_meta_value['users_name'];
+                    // var_dump($term_meta_value);
                     $term_users_unserialize = unserialize($term_users[0]);
                     $all_selected_users_for_post[] = $term_users_unserialize;
                 }
+
+
+
+                // var_dump($all_selected_users_for_post);
 
                 foreach ($all_selected_users_for_post as $data) {
                     foreach ($data as $value) {
                         $new_selected_users[] = $value;
                     }
                 }
-                var_dump($new_selected_users);
+                // var_dump($new_selected_users);
 
-                if(in_array($current_user_id, $new_selected_users)){
+                $categories_type = get_the_category($post->ID);
+
+                $category_ids = [];
+                foreach ($categories_type as $cat_type) {
+                    $category_ids[] = $cat_type->term_id;
+                }
+                // var_dump($category_ids);
+                // die();
+
+                $category_membership_term_data = [];
+                foreach ($category_ids as $cat_id) {
+                    $category_membership_term_data[] = get_term_meta($cat_id);
+                }
+
+                $category_membership_term_value = [];
+                foreach ($category_membership_term_data as $key) {
+                    $category_membership_term_value[] = $key['cat_member_type'];
+                    // $unserialise_category_membership_term_value = unserialize($category_membership_term_value);
+                }
+
+                $unserialise_category_term_ids = [];
+                foreach ($category_membership_term_value as $term_data) {
+                    $unserialise_category_term_ids[] = unserialize($term_data[0]);
+                }
+                //var_dump($unserialise_category_term_ids);
+
+                foreach ($unserialise_category_term_ids as $data) {
+                    foreach ($data as $value) {
+                        $new_selected_users[] = $value;
+                    }
+                }
+
+                $cat_membership_term_users = [];
+                foreach ($new_selected_users as $cat_term_users) {
+                    $cat_membership_term_users[] = get_term_meta($cat_term_users);
+                }
+                // var_dump($cat_membership_term_users);
+
+                $category_membership_term_users_value = [];
+                foreach ($cat_membership_term_users as $key) {
+                    $category_membership_term_users_value[] = $key['users_name'];
+                }
+
+                //var_dump($category_membership_term_users_value);
+
+                $unserialise_category_term_users_ids = [];
+                foreach ($category_membership_term_users_value as $users) {
+                    $unserialise_category_term_users_ids[] = unserialize($users[0]);
+                }
+                //var_dump($unserialise_category_term_users_ids);
+
+                foreach ($unserialise_category_term_users_ids as $term_data) {
+                    foreach ($term_data as $term_value) {
+                        $term_new_selected_users[] = $term_value;
+                    }
+                }
+
+                var_dump($term_new_selected_users);
+
+                $current_user = wp_get_current_user();
+                $current_user_id = strval($current_user->ID);
+                if(in_array($current_user_id, $term_new_selected_users)){
                     return $content;
                 }else{
                     return $content = "<p>Sorry!! you are not eligible for this content. Please contact with the administrator. <br> Our Gmail: <code>admin@gmail.com</code> <br> Call US: +8801688-536148.</p>";
                 }
-            
-                
+
+
+                /*
+                        $categories = get_the_category($post->ID);
+                        //var_dump($category_with_post);
+
+                        $categories_id_in_post = [];
+                        foreach ($categories as $category) {
+                            $categories_id_in_post[] = $category->term_id;
+                        }
+                        $cat_term_meta_value = [];
+                        foreach($categories_id_in_post as $cat_id){
+                            $cat_term_meta_value = get_term_meta($cat_id);
+                            $cat_term_users = $cat_term_meta_value['cat_member_type'];
+                            var_dump($cat_term_users);
+                            // $term_users_unserialize = unserialize($term_users[0]);
+                            // $all_selected_users_for_post[] = $term_users_unserialize;
+                        }
+                */
 
 
                 // For Premium Users
