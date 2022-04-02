@@ -41,8 +41,7 @@ define('SMP_VERSION', '1.0.0');
  * The code that runs during plugin activation.
  * This action is documented in includes/class-smp-activator.php
  */
-function activate_smp()
-{
+function activate_smp(){
     require_once plugin_dir_path(__FILE__) . 'includes/class-smp-activator.php';
     Smp_Activator::activate();
 }
@@ -51,8 +50,7 @@ function activate_smp()
  * The code that runs during plugin deactivation.
  * This action is documented in includes/class-smp-deactivator.php
  */
-function deactivate_smp()
-{
+function deactivate_smp(){
     require_once plugin_dir_path(__FILE__) . 'includes/class-smp-deactivator.php';
     Smp_Deactivator::deactivate();
 }
@@ -75,18 +73,15 @@ require plugin_dir_path(__FILE__) . 'includes/class-smp.php';
  *
  * @since    1.0.0
  */
-function run_smp()
-{
+function run_smp(){
     $plugin = new Smp();
     $plugin->run();
 }
 run_smp();
 
-class SimpleMembership
-{
+class SimpleMembership{
 
-    public function __construct()
-    {
+    public function __construct(){
         // Action Hooks of Wordpress
         add_action('plugins_loaded', array($this, 'smp_load_textdomain'));
         add_action('cmb2_init', array($this, 'smp_add_metabox'));
@@ -94,13 +89,12 @@ class SimpleMembership
         add_action('admin_menu', array($this, 'smp_add_members_taxonomy_admin_page'));
         add_action('cmb2_admin_init', array($this, 'smp_register_taxonomy_metabox_field_for_members'));
         add_action('cmb2_admin_init', array($this, 'smp_register_metabox_field_for_each_category'));
-
+        
         // Filter Hooks of Wordpress
         add_filter('the_content', array($this, 'smp_premium_posts_content'));
     }
 
-    function smp_register_metabox_field_for_each_category()
-    {
+    public function smp_register_metabox_field_for_each_category(){
         $cmb = new_cmb2_box(array(
             'id'               => 'category_membership2222',
             'title'            => esc_html__('Category Metabox', 'cmb2'),
@@ -129,8 +123,7 @@ class SimpleMembership
         ));
     }
 
-    function smp_custom_taxonomy_for_users_option()
-    {
+    public function smp_custom_taxonomy_for_users_option(){
         $labels = array(
             'name'                       => _x('Members', 'Members Name', 'simple-membership'),
             'singular_name'              => _x('Member', 'Member Name', 'simple-membership'),
@@ -166,7 +159,7 @@ class SimpleMembership
         register_taxonomy('members', 'user', $args);
     }
 
-    function smp_add_members_taxonomy_admin_page()
+    public function smp_add_members_taxonomy_admin_page()
     {
         $tax = get_taxonomy('members');
         add_users_page(
@@ -177,7 +170,7 @@ class SimpleMembership
         );
     }
 
-    function smp_register_taxonomy_metabox_field_for_members()
+    public function smp_register_taxonomy_metabox_field_for_members()
     {
         $cmb = new_cmb2_box(array(
             'id'               => 'edit',
@@ -201,8 +194,7 @@ class SimpleMembership
         ));
     }
 
-    function smp_premium_posts_content($content)
-    {
+    public function smp_premium_posts_content($content){
         global $post;
         $little_desc = implode(' ', array_slice(str_word_count($content, 1), 1, 20));
         $premium_post = get_post_meta(get_the_ID(), 'premium_post', true);
@@ -476,19 +468,15 @@ class SimpleMembership
         return $content;
     }
 
-    function smp_activation()
-    {
+    public function smp_activation(){
         add_role('premiumm', 'premiumm');
     }
 
-    function smp_deactivation()
-    {
+    public function smp_deactivation(){
         remove_role('premiumm');
     }
 
-    function smp_add_metabox()
-    {
-
+    public function smp_add_metabox(){
         $cmb = new_cmb2_box(array(
             'id'           => 'simple_membership',
             'title'        => __('Membership Category', 'simple-membership'),
@@ -567,10 +555,135 @@ class SimpleMembership
         ));
     }
 
-    function smp_load_textdomain()
-    {
+    public function smp_load_textdomain(){
         load_plugin_textdomain('simple-membership', false, dirname(__FILE__) . "/languages");
     }
 }
+
+
+/// Woocommerce Code Starts From Here 
+
+// Register Simple Membership custom product type in WooCommerce
+add_action( 'plugins_loaded', 'spm_simple_membership_product_type' );
+
+function spm_simple_membership_product_type () {
+	// declare the product class
+    class WC_Product_Gift_Card extends WC_Product {
+        public function __construct( $product ) {
+           $this->product_type = 'simple_membership';
+           parent::__construct( $product );
+           // add additional functions here
+        }
+    }
+}
+
+// Add Product type to the Product type Drop Down
+add_filter( 'product_type_selector', 'smp_add_simple_membership_type' );
+
+function smp_add_simple_membership_type( $type ) {
+	// Key should be exactly the same as in the class product_type
+	$type[ 'simple_membership' ] = __( 'Simple Membership',  'simple-membership');
+	return $type;
+}
+
+// Add a new tab for custom product type (Simple Membership) ----
+add_filter( 'woocommerce_product_data_tabs', 'smp_simple_membership_tab' );
+
+function smp_simple_membership_tab($tabs) {
+	$tabs['simple_membership'] = array(
+		'label'	 => __( 'Simple Membership', 'simple-membership' ),
+		'target' => 'simple_membership_options',
+		'class'  => ('show_if_simple_membership'),
+	);
+	return $tabs;
+}
+
+// Get Membership Types
+$member_types = get_terms(array(
+    'taxonomy' => 'members',
+    'hide_empty' => false,
+));
+var_dump($member_types);
+
+$member_type = [];
+foreach ($member_types as $mtype) {
+    $member_type[$mtype->term_id] = $mtype->name;
+}
+
+    
+
+// Add fields / settings to the custom product Tab
+add_action( 'woocommerce_product_data_panels', 'smp_simple_membership_options_product_tab_content' );
+
+function smp_simple_membership_options_product_tab_content() {
+
+	// Dont forget to change the id in the div with your target of your product tab
+	?><div id='simple_membership_options' class='panel woocommerce_options_panel'><?php
+
+		?><div class='options_group'><?php
+
+			woocommerce_wp_checkbox( array(
+				'id' 	=> 'enable_simple_membership',
+				'label' => __( 'Enable Simple Membership Product', 'simple-membership' ),
+			));
+
+			woocommerce_wp_text_input( array(
+				'id'          => 'simple_membership_price',
+				'label'       => __( 'Price', 'simple-membership' ),
+		       		'placeholder' => 'Product Price',
+		       		'desc_tip'    => 'true',
+		       		'description' => __('Enter Simple Membership Price', 'simple-membership'),
+		    ));
+            
+            woocommerce_wp_select_multiple(array(
+                    'id' => '_myfield',
+                    'name' => '_myfield[]',
+                    'label' => 'My Multiselect Field',
+                    'options' => array(
+                        'Mon' => 'Monday',
+                        'Tue' => 'Tuesday',
+                        'Wed' => 'Wednesday',
+                        'Thu' => 'Thursday',
+                        'Fri' => 'Friday',
+                        'Sat' => 'Saturday',
+                        'Sun' => 'Sunday'
+                    ),
+                )
+            );
+
+		?></div>
+	</div><?php
+}
+
+// Saving the custom product type Settings
+add_action( 'woocommerce_process_product_meta', 'smp_save_simple_membership_options_field' );
+
+function smp_save_simple_membership_options_field($post_id) {
+
+	$enable_simple_membership = isset( $_POST['enable_simple_membership'] ) ? 'yes' : 'no';
+	update_post_meta( $post_id, 'enable_simple_membership', $enable_simple_membership );
+
+	if ( isset($_POST['simple_membership_price'])) :
+		update_post_meta( $post_id, 'simple_membership_price', sanitize_text_field( $_POST['simple_membership_price']));
+	endif;
+}
+
+/*
+add_action( 'woocommerce_single_product_summary', 'gift_card_template', 60 );
+
+function gift_card_template () {
+
+	global $product;
+	if ( 'gift_card' == $product->get_type() ) {
+
+		$template_path = plugin_dir_path( __FILE__ ) . 'templates/';
+		// Load the template
+		wc_get_template( 'single-product/add-to-cart/gift_card.php',
+			'',
+			'',
+			trailingslashit( $template_path ) );
+	}
+}
+ */
 
 new SimpleMembership();
