@@ -381,12 +381,14 @@ class SimpleMembership
                 //var_dump($unserialise_category_term_users_ids);
 
                 foreach ($unserialise_category_term_users_ids as $term_data) {
-                    foreach ($term_data as $term_value) {
-                        $term_new_selected_users[] = $term_value;
+                    if (is_array($term_data) || is_object($term_data)){
+                        foreach ($term_data as $term_value) {
+                            $term_new_selected_users[] = $term_value;
+                        }
                     }
                 }
 
-                var_dump($term_new_selected_users);
+                // var_dump($term_new_selected_users);
 
                 $current_user = wp_get_current_user();
                 $current_user_id = strval($current_user->ID);
