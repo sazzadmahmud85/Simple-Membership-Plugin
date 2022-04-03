@@ -195,7 +195,9 @@ class SimpleMembership{
     }
 
     public function smp_premium_posts_content($content){
+
         global $post;
+
         $little_desc = implode(' ', array_slice(str_word_count($content, 1), 1, 20));
         $premium_post = get_post_meta(get_the_ID(), 'premium_post', true);
         if ($premium_post) {
@@ -297,7 +299,7 @@ class SimpleMembership{
                 // }
 
                 $users_type = get_post_meta(get_the_ID(), 'member_type', true);
-                // var_dump($users_type);
+                
 
                 $all_selected_users_for_post = [];
                 foreach ($users_type as $user_type) {
@@ -384,6 +386,7 @@ class SimpleMembership{
 
                 $current_user = wp_get_current_user();
                 $current_user_id = strval($current_user->ID);
+
                 if(in_array($current_user_id, $term_new_selected_users)){
                     return $content;
                 }else{
@@ -597,25 +600,29 @@ function smp_simple_membership_tab($tabs) {
 	);
 	return $tabs;
 }
-
-// Get Membership Types
-$member_types = get_terms(array(
-    'taxonomy' => 'members',
-    'hide_empty' => false,
-));
-var_dump($member_types);
-
-$member_type = [];
-foreach ($member_types as $mtype) {
-    $member_type[$mtype->term_id] = $mtype->name;
+// Add fields / settings to the custom product Tab
+add_action('init',  'smp_get__terms_list', 40);
+function smp_get__terms_list(){
+    // Get Membership Types
+    $member_types = get_terms(array(
+        'taxonomy' => 'members',
+        'hide_empty' => false,
+    ));
+    
+    $member_type = [];
+    foreach ($member_types as $mtype) {
+        $member_type[$mtype->term_id] = $mtype->name;
+    }
+    $new_array = $member_type;
+    return $new_array;
 }
 
-    
 
-// Add fields / settings to the custom product Tab
 add_action( 'woocommerce_product_data_panels', 'smp_simple_membership_options_product_tab_content' );
 
 function smp_simple_membership_options_product_tab_content() {
+
+    // var_dump();
 
 	// Dont forget to change the id in the div with your target of your product tab
 	?><div id='simple_membership_options' class='panel woocommerce_options_panel'><?php
@@ -636,18 +643,22 @@ function smp_simple_membership_options_product_tab_content() {
 		    ));
             
             woocommerce_wp_select_multiple(array(
-                    'id' => '_myfield',
-                    'name' => '_myfield[]',
-                    'label' => 'My Multiselect Field',
-                    'options' => array(
-                        'Mon' => 'Monday',
-                        'Tue' => 'Tuesday',
-                        'Wed' => 'Wednesday',
-                        'Thu' => 'Thursday',
-                        'Fri' => 'Friday',
-                        'Sat' => 'Saturday',
-                        'Sun' => 'Sunday'
-                    ),
+                    'id' => 'smp_membership_type',
+                    'name' => 'smp_membership_type[]',
+                    'label' => 'Membership Type',
+                    'options' => smp_get__terms_list()
+                    
+                    /* 
+                            array(
+                                // 'Mon' => 'Monday',
+                                // 'Tue' => 'Tuesday',
+                                // 'Wed' => 'Wednesday',
+                                // 'Thu' => 'Thursday',
+                                // 'Fri' => 'Friday',
+                                // 'Sat' => 'Saturday',
+                                // 'Sun' => 'Sunday'
+                            ),
+                    */
                 )
             );
 
@@ -666,7 +677,12 @@ function smp_save_simple_membership_options_field($post_id) {
 	if ( isset($_POST['simple_membership_price'])) :
 		update_post_meta( $post_id, 'simple_membership_price', sanitize_text_field( $_POST['simple_membership_price']));
 	endif;
+    update_post_meta($post_id, 'smp_membership_type', $_POST['smp_membership_type']);
 }
+
+// remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_login_form', 10 );
+
+// add_action( 'woocommerce_after_checkout_billing_form', 'woocommerce_checkout_login_form' );
 
 /*
 add_action( 'woocommerce_single_product_summary', 'gift_card_template', 60 );
