@@ -617,6 +617,78 @@ function smp_get__terms_list(){
     return $new_array;
 }
 
+// add advanced pricing
+function smp_add_general_field() {
+    global $product_object;
+    ?>
+    <div class='options_group show_if_simple_membership'>
+        <?php
+
+        woocommerce_wp_text_input(
+            array(
+                'id'          => 'smp_price',
+                'label'       => __( 'Price for members', 'simple-membership' ),
+                'value'       => $product_object->get_meta( 'smp_price', true ),
+                'default'     => '',
+                'placeholder' => 'Enter Price',
+                'data_type' => 'price',
+            )
+        );
+
+        woocommerce_wp_select_multiple(
+            array(
+                'id' => 'smp_membership_type',
+                'name' => 'smp_membership_type[]',
+                'label' => 'Membership Type',
+                'options' => smp_get__terms_list()
+            )
+        );
+        ?>
+    </div>
+     
+<?php
+}
+add_action( 'woocommerce_product_options_pricing', 'smp_add_general_field');
+
+// Generl Tab not showing up
+add_action( 'woocommerce_product_options_general_product_data', function(){
+    echo '<div class="options_group show_if_simple_membership clear"></div>';
+} );
+
+// add show_if_advanced calass to options_group
+function enable_product_js() {
+    global $post, $product_object;
+
+    if ( ! $post ) { return; }
+
+    if ( 'product' != $post->post_type ) :
+  return;
+    endif;
+
+    $is_simple_membership = $product_object && 'simple_membership' === $product_object->get_type() ? true : false;
+
+    ?>
+    <script type='text/javascript'>
+    jQuery(document).ready(function () {
+    //for Price tab
+    jQuery('#general_product_data .pricing').addClass('show_if_simple_membership');
+
+    <?php if ( $is_simple_membership ) { ?>
+        jQuery('#general_product_data .pricing').show();
+    <?php } ?>
+    });
+    </script>
+    <?php
+}
+add_action( 'admin_footer', 'enable_product_js');
+
+// save data on submission
+function smp_save_simple_membership_price( $post_id ) {
+    $price = isset( $_POST['smp_price'] ) ? sanitize_text_field( $_POST['smp_price'] ) : '';
+    update_post_meta( $post_id, 'smp_price', $price );
+}
+add_action( 'woocommerce_process_product_meta_simple_membership', 'smp_save_simple_membership_price');
+
 
 add_action( 'woocommerce_product_data_panels', 'smp_simple_membership_options_product_tab_content' );
 
@@ -642,25 +714,7 @@ function smp_simple_membership_options_product_tab_content() {
 		       		'description' => __('Enter Simple Membership Price', 'simple-membership'),
 		    ));
             
-            woocommerce_wp_select_multiple(array(
-                    'id' => 'smp_membership_type',
-                    'name' => 'smp_membership_type[]',
-                    'label' => 'Membership Type',
-                    'options' => smp_get__terms_list()
-                    
-                    /* 
-                            array(
-                                // 'Mon' => 'Monday',
-                                // 'Tue' => 'Tuesday',
-                                // 'Wed' => 'Wednesday',
-                                // 'Thu' => 'Thursday',
-                                // 'Fri' => 'Friday',
-                                // 'Sat' => 'Saturday',
-                                // 'Sun' => 'Sunday'
-                            ),
-                    */
-                )
-            );
+            
 
 		?></div>
 	</div><?php
@@ -680,26 +734,23 @@ function smp_save_simple_membership_options_field($post_id) {
     update_post_meta($post_id, 'smp_membership_type', $_POST['smp_membership_type']);
 }
 
-// remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_login_form', 10 );
-
-// add_action( 'woocommerce_after_checkout_billing_form', 'woocommerce_checkout_login_form' );
-
-/*
-add_action( 'woocommerce_single_product_summary', 'gift_card_template', 60 );
-
-function gift_card_template () {
-
-	global $product;
-	if ( 'gift_card' == $product->get_type() ) {
-
-		$template_path = plugin_dir_path( __FILE__ ) . 'templates/';
-		// Load the template
-		wc_get_template( 'single-product/add-to-cart/gift_card.php',
-			'',
-			'',
-			trailingslashit( $template_path ) );
-	}
+add_action( 'woocommerce_thankyou', 'smp_after_placing_the_order', 10, 1 );
+function smp_after_placing_the_order( $order_id ) {
+    $order = new WC_Order( $order_id );
+    $customer_id = $order->data['customer_id'];
+    $order_items = $order->get_items();
+    $product_id = [];
+    $product = [];
+    foreach ( $order_items as $item ) {
+        $product_id[] = $item['product_id'];
+        $product[] = $item->get_product();
+    }
+    $product_meta = get_post_meta($product_id, 'smp_membership_type', true );
 }
- */
+
+function smp_simple_membership_add_to_cart(){
+    wc_get_template( 'single-product/add-to-cart/simple.php' );
+}
+add_action( 'woocommerce_simple_membership_add_to_cart', 'smp_simple_membership_add_to_cart' );
 
 new SimpleMembership();
