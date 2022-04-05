@@ -737,15 +737,68 @@ function smp_save_simple_membership_options_field($post_id) {
 add_action( 'woocommerce_thankyou', 'smp_after_placing_the_order', 10, 1 );
 function smp_after_placing_the_order( $order_id ) {
     $order = new WC_Order( $order_id );
-    $customer_id = $order->data['customer_id'];
+    $customer_id = strval($order->data['customer_id']);
     $order_items = $order->get_items();
+    var_dump($customer_id);
     $product_id = [];
-    $product = [];
+
     foreach ( $order_items as $item ) {
         $product_id[] = $item['product_id'];
-        $product[] = $item->get_product();
     }
-    $product_meta = get_post_meta($product_id, 'smp_membership_type', true );
+
+    $woocommerce_product_term_data = [];
+    foreach ($product_id as $pdi) {
+        $woocommerce_product_term_data[] = get_post_meta($pdi);
+    }
+
+    
+    $woocommerce_product_term_value = [];
+    foreach ($woocommerce_product_term_data as $key) {
+        $woocommerce_product_term_value[] = $key['smp_membership_type'];
+    }
+
+    $unserialise_woocommerce_product_term_ids = [];
+    foreach ($woocommerce_product_term_value as $term_data) {
+        $unserialise_woocommerce_product_term_ids[] = unserialize($term_data[0]);
+    }
+
+
+    foreach ($unserialise_woocommerce_product_term_ids as $data) {
+        if (is_array($data) || is_object($data)){
+            foreach ($data as $value) {
+                $new_wc_pd_term_ids[] = $value;
+            }
+        }
+    }
+
+    $wc_pd_term_data = [];
+    foreach ($new_wc_pd_term_ids as $term_id) {
+        $wc_pd_term_data[] = get_term_meta($term_id);
+    }
+
+    $wc_pd_term_users = [];
+    foreach ($wc_pd_term_data as $key) {
+        $wc_pd_term_users[] = $key['users_name'];
+    }
+
+
+    $unserialise_wc_pd_term_users = [];
+    foreach ($wc_pd_term_users as $data) {
+        $unserialise_wc_pd_term_users[] = unserialize($data[0]);
+    }
+
+    foreach ($unserialise_wc_pd_term_users as $data) {
+        if (is_array($data) || is_object($data)){
+            foreach ($data as $value) {
+                $new_wc_pd_term_users[] = $value;
+            }
+        }
+    }
+
+    var_dump($new_wc_pd_term_users);
+    $add_current_user_with_term_users = array_push($new_wc_pd_term_users, $customer_id);
+    var_dump($new_wc_pd_term_users);
+
 }
 
 function smp_simple_membership_add_to_cart(){
